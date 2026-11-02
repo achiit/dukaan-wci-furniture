@@ -1,0 +1,818 @@
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import {
+  Heart, ShoppingCart, Search, Globe, Box, ScanLine, Ruler, GitCompare,
+  RotateCcw, Award, Leaf, Video, Bell, MessageCircle, X, Check, Play,
+  LayoutGrid, Users, Package, TrendingUp, Settings, Star, MapPin, Send,
+  Sparkles, Wrench, Lock, Plus, Trash2, Edit3, Save, Eye, EyeOff, Phone,
+  LogOut,
+} from "lucide-react";
+
+/* ==================================================================
+   BRAND TOKENS — WCI Furniture
+=================================================================== */
+const T = {
+  ink: "#231A12",
+  teak: "#5B4128",
+  brass: "#B8863B",
+  paper: "#FAF7F1",
+  paper2: "#F0E8D8",
+  sage: "#5E7256",
+  rust: "#B5432C",
+  line: "#E3D8C2",
+};
+
+const COMPANY = {
+  name: "WCI Furniture",
+  address: "Gosai Pur, Katihar, Bihar, India",
+  pincode: "855113",
+  phones: ["9572349911", "7320054330"],
+};
+
+const ADMIN_PASSWORD = "WCI";
+
+function autoInfoMessage() {
+  return (
+    `नमस्ते! 🙏 WCI Furniture में आपका स्वागत है।\n\n` +
+    `📍 पता: ${COMPANY.address} — पिन कोड ${COMPANY.pincode}\n` +
+    `📞 फ़ोन: ${COMPANY.phones.join(" / ")}\n\n` +
+    `मैं Alexa हूं, आपकी सहायक। बताइए, मैं आपकी किस तरह मदद कर सकती हूं?`
+  );
+}
+
+const STRINGS = {
+  en: {
+    tagline: "Furniture, planned before it arrives",
+    searchPh: "Search chairs, tables, sofas…",
+    home: "Home", wishlist: "Wishlist", compare: "Compare", cart: "Cart", admin: "Admin",
+    addToCart: "Add to Cart", buyNow: "One-Click Checkout",
+    view3d: "3D Customize", viewAR: "AR Preview", arMeasure: "AR Measurement",
+    roomPlanner: "Room Planner", diy: "DIY Assembly Guide",
+    maintenance: "Maintenance Tips", consult: "Video Consultation", reorder: "Quick Reorder",
+    trackOrder: "Track Order (Live Location)", points: "points", redeemable: "redeemable on next order",
+  },
+  hi: {
+    tagline: "फर्नीचर, आने से पहले प्लान किया गया",
+    searchPh: "कुर्सी, टेबल, सोफा खोजें…",
+    home: "होम", wishlist: "विशलिस्ट", compare: "तुलना", cart: "कार्ट", admin: "एडमिन",
+    addToCart: "कार्ट में डालें", buyNow: "वन-क्लिक चेकआउट",
+    view3d: "3D कस्टमाइज़ेशन", viewAR: "AR प्रीव्यू", arMeasure: "AR मेज़रमेंट",
+    roomPlanner: "रूम प्लानर", diy: "DIY असेंबली गाइड",
+    maintenance: "रखरखाव टिप्स", consult: "वीडियो कंसल्टेशन", reorder: "क्विक रिऑर्डर",
+    trackOrder: "ऑर्डर ट्रैक करें (लाइव लोकेशन)", points: "पॉइंट्स", redeemable: "अगले ऑर्डर पर भुनाएं",
+  },
+};
+
+/* Product data — oldPrice = MRP, newPrice = selling price (cross-out when different) */
+const PRODUCTS = [
+  { id: 1, name: "Walnut Sloan Sofa", nameHi: "वॉलनट स्लोन सोफा", oldPrice: 54999, newPrice: 48999, cat: "Sofa",
+    finish: ["Walnut", "Oak", "Ebony"], rating: 4.6, eco: true, icon: "🛋️", stock: 8 },
+  { id: 2, name: "Oakridge Dining Table", nameHi: "ओकरिज डाइनिंग टेबल", oldPrice: 32999, newPrice: 32999, cat: "Table",
+    finish: ["Oak", "Teak"], rating: 4.8, eco: true, icon: "🍽️", stock: 3 },
+  { id: 3, name: "Cane Weave Lounge Chair", nameHi: "केन वीव लाउंज चेयर", oldPrice: 14999, newPrice: 12499, cat: "Chair",
+    finish: ["Natural Cane", "Dark Cane"], rating: 4.4, eco: false, icon: "🪑", stock: 15 },
+  { id: 4, name: "Modular Bookshelf Unit", nameHi: "मॉड्यूलर बुकशेल्फ़ यूनिट", oldPrice: 24999, newPrice: 21999, cat: "Storage",
+    finish: ["White Oak", "Charcoal"], rating: 4.5, eco: true, icon: "📚", stock: 6 },
+  { id: 5, name: "Teak Platform Bed", nameHi: "टीक प्लेटफ़ॉर्म बेड", oldPrice: 44999, newPrice: 39999, cat: "Bed",
+    finish: ["Teak", "Walnut"], rating: 4.7, eco: true, icon: "🛏️", stock: 5 },
+  { id: 6, name: "Brass Leg Coffee Table", nameHi: "ब्रास लेग कॉफ़ी टेबल", oldPrice: 9999, newPrice: 9999, cat: "Table",
+    finish: ["Marble White", "Black"], rating: 4.3, eco: false, icon: "☕", stock: 11 },
+];
+
+/* ==================================================================
+   SHARED STYLES / PRIMITIVES
+=================================================================== */
+const navBtn = { background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, width: 32, height: 32, fontSize: 18, cursor: "pointer" };
+const chip = { display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${T.line}`, borderRadius: 20, padding: "7px 12px", fontSize: 12, cursor: "pointer", background: "#fff" };
+const ghostBtn = { display: "inline-flex", alignItems: "center", gap: 6, border: `1.5px solid ${T.ink}`, background: "#fff", color: T.ink, borderRadius: 10, padding: "10px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" };
+const primaryBtnSm = { display: "inline-flex", alignItems: "center", gap: 6, border: "none", background: T.ink, color: "#fff", borderRadius: 10, padding: "10px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" };
+const inputStyle = { border: `1px solid ${T.line}`, borderRadius: 8, padding: "9px 11px", fontSize: 13.5, outline: "none", width: "100%", background: "#fff" };
+const labelStyle = { fontSize: 11.5, color: T.teak, marginBottom: 4, display: "block", fontWeight: 600 };
+
+function Badge({ children, tone = "oak" }) {
+  const bg = tone === "sage" ? T.sage : tone === "rust" ? T.rust : T.brass;
+  return (
+    <span style={{
+      background: bg, color: "#fff", fontSize: 11, fontWeight: 600,
+      padding: "3px 9px", borderRadius: 20, letterSpacing: 0.3,
+      display: "inline-flex", alignItems: "center", gap: 4,
+    }}>{children}</span>
+  );
+}
+
+function Toast({ message, onDone }) {
+  useEffect(() => { const t = setTimeout(onDone, 2600); return () => clearTimeout(t); }, [onDone]);
+  return (
+    <div style={{
+      position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)",
+      background: T.ink, color: "#fff", padding: "12px 18px", borderRadius: 10,
+      fontSize: 13.5, display: "flex", alignItems: "center", gap: 8, zIndex: 200,
+      boxShadow: "0 10px 30px rgba(0,0,0,.25)", maxWidth: "88%", fontFamily: "Inter, sans-serif",
+    }}>
+      <Bell size={15} color={T.brass} /> {message}
+    </div>
+  );
+}
+
+/* Crossed-out old price + new price */
+function PriceTag({ oldPrice, newPrice, size = 14 }) {
+  const onSale = oldPrice > newPrice;
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+      <span style={{ fontSize: size + 2, fontWeight: 700, color: onSale ? T.rust : T.ink }}>
+        ₹{newPrice.toLocaleString("en-IN")}
+      </span>
+      {onSale && (
+        <span style={{ fontSize: size - 2, color: "#999", textDecoration: "line-through" }}>
+          ₹{oldPrice.toLocaleString("en-IN")}
+        </span>
+      )}
+      {onSale && (
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: T.rust, padding: "2px 6px", borderRadius: 6 }}>
+          {Math.round((1 - newPrice / oldPrice) * 100)}% OFF
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ==================================================================
+   PRODUCT CARD
+=================================================================== */
+function ProductCard({ p, lang, wishlist, toggleWishlist, compareList, toggleCompare, openProduct }) {
+  const inWish = wishlist.includes(p.id);
+  const inCompare = compareList.includes(p.id);
+  return (
+    <div style={{
+      background: "#fff", border: `1px solid ${T.line}`, borderRadius: 14, overflow: "hidden",
+      display: "flex", flexDirection: "column", cursor: "pointer", position: "relative",
+    }} onClick={() => openProduct(p)}>
+      <div style={{
+        height: 122, background: `linear-gradient(135deg, ${T.paper2}, #fff)`,
+        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 50, position: "relative",
+      }}>
+        {p.icon}
+        {p.eco && <div style={{ position: "absolute", top: 8, left: 8 }}><Badge tone="sage"><Leaf size={11} /> Eco</Badge></div>}
+        <button onClick={(e) => { e.stopPropagation(); toggleWishlist(p.id); }} style={{
+          position: "absolute", top: 8, right: 8, background: "rgba(255,255,255,.9)", border: "none",
+          borderRadius: "50%", width: 30, height: 30, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Heart size={15} color={inWish ? T.rust : T.ink} fill={inWish ? T.rust : "none"} />
+        </button>
+      </div>
+      <div style={{ padding: "12px 13px 13px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontSize: 14.5, fontWeight: 700, color: T.ink, lineHeight: 1.25 }}>
+          {lang === "hi" ? p.nameHi : p.name}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: T.teak }}>
+          <Star size={12} fill={T.brass} color={T.brass} /> {p.rating}
+          <span style={{ color: "#999", marginLeft: 6 }}>{p.cat}</span>
+        </div>
+        <PriceTag oldPrice={p.oldPrice} newPrice={p.newPrice} size={14} />
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: T.teak, marginTop: 2 }}
+          onClick={(e) => e.stopPropagation()}>
+          <input type="checkbox" checked={inCompare} onChange={() => toggleCompare(p.id)} />
+          {lang === "hi" ? "तुलना में जोड़ें" : "Add to compare"}
+        </label>
+      </div>
+    </div>
+  );
+}
+
+/* ==================================================================
+   PRODUCT DETAIL — 3D, AR, AR-measure, room planner, DIY, care,
+   video consult, sustainability, crossed-out pricing
+=================================================================== */
+function ProductDetail({ p, lang, addToCart, showToast, back }) {
+  const s = STRINGS[lang];
+  const [tab, setTab] = useState("view");
+  const [finish, setFinish] = useState(p.finish[0]);
+  const [rot, setRot] = useState(0);
+
+  const tabs = [
+    { id: "view", label: s.view3d, icon: Box },
+    { id: "ar", label: s.viewAR, icon: ScanLine },
+    { id: "measure", label: s.arMeasure, icon: Ruler },
+    { id: "room", label: s.roomPlanner, icon: LayoutGrid },
+    { id: "diy", label: s.diy, icon: Play },
+    { id: "care", label: s.maintenance, icon: Wrench },
+  ];
+
+  return (
+    <div style={{ paddingBottom: 90 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px 6px" }}>
+        <button onClick={back} style={navBtn}>‹</button>
+        <div style={{ fontSize: 16.5, fontWeight: 700, color: T.ink }}>{lang === "hi" ? p.nameHi : p.name}</div>
+      </div>
+
+      <div style={{
+        margin: "10px 16px", height: 220, borderRadius: 16,
+        background: tab === "ar" || tab === "measure"
+          ? `repeating-linear-gradient(45deg, ${T.paper2}, ${T.paper2} 10px, #EDE3CE 10px, #EDE3CE 20px)`
+          : `radial-gradient(circle at 30% 20%, ${T.paper2}, ${T.paper})`,
+        display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10,
+        position: "relative", overflow: "hidden", border: `1px solid ${T.line}`,
+      }}>
+        {tab === "view" && (
+          <>
+            <div style={{ fontSize: 70, transform: `rotate(${rot}deg)`, transition: "transform .3s" }}>{p.icon}</div>
+            <button style={ghostBtn} onClick={() => setRot(rot - 30)}><RotateCcw size={14} /> {lang === "hi" ? "घुमाएं" : "Rotate"}</button>
+            <div style={{ fontSize: 11, color: T.teak }}>{lang === "hi" ? `फिनिश: ${finish} • 360° लाइव मॉडल` : `Finish: ${finish} • live 360° model`}</div>
+          </>
+        )}
+        {tab === "ar" && (
+          <>
+            <ScanLine size={40} color={T.teak} />
+            <div style={{ fontSize: 12.5, color: T.teak, textAlign: "center", padding: "0 24px" }}>
+              {lang === "hi" ? "अपने कमरे में इस मॉडल को देखने के लिए कैमरा एक्सेस चालू करें" : "Enable camera access to place this model in your room"}
+            </div>
+            <button style={primaryBtnSm}>{lang === "hi" ? "कैमरा शुरू करें" : "Start Camera"}</button>
+            <div style={{ position: "absolute", bottom: 8, fontSize: 9.5, color: "#9a8b6f" }}>requires device ARKit / ARCore — native module</div>
+          </>
+        )}
+        {tab === "measure" && (
+          <>
+            <Ruler size={40} color={T.teak} />
+            <div style={{ fontSize: 12.5, color: T.teak, textAlign: "center", padding: "0 24px" }}>
+              {lang === "hi" ? "अपनी जगह को स्कैन कर मापें — यह फर्नीचर फिट होगा या नहीं जानें" : "Scan your space to check if this piece fits"}
+            </div>
+            <div style={{ display: "flex", gap: 14, fontSize: 12, color: T.ink }}>
+              <span>W: 2.1m</span><span>D: 0.9m</span><span>H: 0.8m</span>
+            </div>
+            <div style={{ position: "absolute", bottom: 8, fontSize: 9.5, color: "#9a8b6f" }}>requires device LiDAR / depth sensor</div>
+          </>
+        )}
+        {tab === "room" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gridTemplateRows: "repeat(4,1fr)", gap: 3, width: "80%", height: "80%" }}>
+            {Array.from({ length: 24 }).map((_, i) => (
+              <div key={i} style={{
+                background: i === 9 ? T.brass : "#fff", border: `1px solid ${T.line}`, borderRadius: 3,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
+              }}>{i === 9 ? p.icon : ""}</div>
+            ))}
+          </div>
+        )}
+        {tab === "diy" && (
+          <>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: T.ink, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Play size={24} color="#fff" fill="#fff" />
+            </div>
+            <div style={{ fontSize: 12, color: T.teak }}>{lang === "hi" ? "स्टेप-बाय-स्टेप असेंबली वीडियो · 6:42" : "Step-by-step assembly video · 6:42"}</div>
+          </>
+        )}
+        {tab === "care" && (
+          <div style={{ padding: "0 22px", fontSize: 12.5, color: T.ink, lineHeight: 1.7 }}>
+            {(lang === "hi"
+              ? ["महीने में एक बार सूखे कपड़े से पोंछें", "सीधी धूप से बचाएं", "6 महीने में एक बार लकड़ी का तेल लगाएं"]
+              : ["Dust with a dry cloth monthly", "Keep away from direct sunlight", "Apply wood oil every 6 months"]
+            ).map((tip, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                <Check size={14} color={T.sage} style={{ flexShrink: 0, marginTop: 2 }} /> {tip}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "2px 16px 10px" }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            ...chip, background: tab === t.id ? T.ink : "#fff", color: tab === t.id ? "#fff" : T.ink,
+            borderColor: tab === t.id ? T.ink : T.line, whiteSpace: "nowrap", flexShrink: 0,
+          }}><t.icon size={13} /> {t.label}</button>
+        ))}
+      </div>
+
+      <div style={{ padding: "6px 16px" }}>
+        <div style={{ fontSize: 12.5, color: T.teak, marginBottom: 6 }}>{lang === "hi" ? "फिनिश चुनें" : "Choose finish"}</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          {p.finish.map(f => (
+            <button key={f} onClick={() => setFinish(f)} style={{
+              ...chip, background: finish === f ? T.brass : "#fff", color: finish === f ? "#fff" : T.ink,
+              borderColor: finish === f ? T.brass : T.line,
+            }}>{f}</button>
+          ))}
+        </div>
+
+        {p.eco && (
+          <div style={{ display: "flex", gap: 10, alignItems: "center", background: "#EFF2EA", border: `1px solid ${T.sage}33`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+            <Award size={22} color={T.sage} />
+            <div style={{ fontSize: 12, color: "#3E4636" }}>
+              {lang === "hi" ? "FSC सर्टिफाइड लकड़ी · कम-कार्बन शिपिंग · सस्टेनेबिलिटी सर्टिफिकेट देखें" : "FSC-certified wood · low-carbon shipping · view sustainability certificate"}
+            </div>
+          </div>
+        )}
+
+        <button style={{ ...ghostBtn, width: "100%", justifyContent: "center", marginBottom: 10 }}>
+          <Video size={15} /> {s.consult} — {lang === "hi" ? "एक डिज़ाइनर से बात करें" : "talk to a designer"}
+        </button>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <PriceTag oldPrice={p.oldPrice} newPrice={p.newPrice} size={20} />
+          <Badge>+{Math.round(p.newPrice / 100)} {s.points}</Badge>
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button style={{ ...ghostBtn, flex: 1, justifyContent: "center" }}
+            onClick={() => { addToCart(p, finish); showToast(lang === "hi" ? "कार्ट में जोड़ा गया" : "Added to cart"); }}>
+            <ShoppingCart size={15} /> {s.addToCart}
+          </button>
+          <button style={{ ...primaryBtnSm, flex: 1, justifyContent: "center" }}
+            onClick={() => showToast(lang === "hi" ? "ऑर्डर हो गया — धन्यवाद!" : "Order placed — thank you!")}>
+            {s.buyNow}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ==================================================================
+   ALEXA — AI CHATBOT WIDGET
+   First message in any rolling 24h window → immediate company info.
+   All later turns → human-like conversation via Claude API (falls
+   back to local reply if that endpoint isn't reachable here).
+=================================================================== */
+function AlexaChatbot({ lang, onClose }) {
+  const [messages, setMessages] = useState([
+    { from: "bot", text: lang === "hi" ? "नमस्ते! मैं Alexa हूं, WCI Furniture की सहायक। कुछ पूछिए — मैं यहीं हूं। 🪵" : "Hi! I'm Alexa, WCI Furniture's assistant. Ask me anything. 🪵" },
+  ]);
+  const [input, setInput] = useState("");
+  const [typing, setTyping] = useState(false);
+  // Demo-only: resets on page reload. In production, persist this timestamp
+  // per user on the backend so the 24h window survives across sessions.
+  const lastWindowStartRef = useRef(null);
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, typing]);
+
+  const isNewWindow = () => {
+    const now = Date.now();
+    const start = lastWindowStartRef.current;
+    if (start === null || now - start > 24 * 60 * 60 * 1000) { lastWindowStartRef.current = now; return true; }
+    return false;
+  };
+
+  const humanFallback = (userText) => {
+    const t = userText.toLowerCase();
+    if (/price|कीमत|दाम|rate/.test(t)) return "हमारे प्रोडक्ट्स की कीमतें कैटलॉग में अपडेटेड हैं — कोई खास आइटम बताइए, मैं आपको एग्ज़ैक्ट प्राइस बता दूं।";
+    if (/deliver|डिलीवरी|shipping/.test(t)) return "आमतौर पर डिलीवरी में 5–7 दिन लगते हैं। आपका पिनकोड बता सकते हैं?";
+    if (/hi|hello|नमस्ते|हेलो/.test(t)) return "जी बताइए, आज मैं आपकी क्या मदद कर सकती हूं? 😊";
+    return "समझ गई! ज़रा और बताइए — किस तरह का फर्नीचर देख रहे हैं, ताकि मैं सही सुझाव दे सकूं।";
+  };
+
+  const getAlexaReply = async (history) => {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 300,
+          system:
+            "You are Alexa, a warm, friendly, human-sounding customer support assistant for WCI Furniture, " +
+            "a furniture store in Katihar, Bihar, India. Reply in the same language/style the customer uses " +
+            "(Hindi, Hinglish, or English). Keep replies short (2-4 sentences), conversational, never robotic, " +
+            "and helpful about furniture products, pricing, delivery, and orders. Do not repeat the company " +
+            "address/phone unless the customer asks for it again.",
+          messages: history.map(m => ({ role: m.from === "bot" ? "assistant" : "user", content: m.text })),
+        }),
+      });
+      const data = await res.json();
+      const text = data?.content?.find(c => c.type === "text")?.text;
+      if (text) return text;
+      throw new Error("empty");
+    } catch { return humanFallback(history[history.length - 1].text); }
+  };
+
+  const send = async () => {
+    if (!input.trim()) return;
+    const userMsg = { from: "user", text: input };
+    const newWindow = isNewWindow();
+    const nextMsgs = [...messages, userMsg];
+    setMessages(nextMsgs); setInput(""); setTyping(true);
+
+    if (newWindow) {
+      setTimeout(() => { setMessages(m => [...m, { from: "bot", text: autoInfoMessage() }]); setTyping(false); }, 500);
+      return;
+    }
+    const reply = await getAlexaReply(nextMsgs);
+    setMessages(m => [...m, { from: "bot", text: reply }]);
+    setTyping(false);
+  };
+
+  return (
+    <div style={{
+      position: "fixed", bottom: 0, right: 0, left: 0, margin: "0 auto", maxWidth: 420, height: "62%",
+      background: "#fff", borderRadius: "18px 18px 0 0", zIndex: 300,
+      boxShadow: "0 -10px 40px rgba(0,0,0,.25)", display: "flex", flexDirection: "column",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: T.ink, borderRadius: "18px 18px 0 0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#fff" }}>
+          <Sparkles size={16} color={T.brass} />
+          <div><div style={{ fontSize: 14.5, fontWeight: 700 }}>Alexa</div><div style={{ fontSize: 10, color: "#D8CBB4" }}>WCI Furniture Assistant</div></div>
+        </div>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color="#fff" /></button>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{
+            alignSelf: m.from === "bot" ? "flex-start" : "flex-end",
+            background: m.from === "bot" ? T.paper2 : T.ink, color: m.from === "bot" ? T.ink : "#fff",
+            padding: "9px 13px", borderRadius: 14, fontSize: 13, maxWidth: "82%", lineHeight: 1.45, whiteSpace: "pre-line",
+          }}>{m.text}</div>
+        ))}
+        {typing && <div style={{ alignSelf: "flex-start", color: "#999", fontSize: 12 }}>Alexa is typing…</div>}
+        <div ref={endRef} />
+      </div>
+      <div style={{ display: "flex", gap: 8, padding: 12, borderTop: `1px solid ${T.line}` }}>
+        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()}
+          placeholder={lang === "hi" ? "अपना सवाल लिखें…" : "Type your question…"}
+          style={{ ...inputStyle, borderRadius: 20 }} />
+        <button onClick={send} style={{
+          background: T.brass, border: "none", borderRadius: "50%", width: 36, height: 36,
+          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0,
+        }}><Send size={15} color="#fff" /></button>
+      </div>
+    </div>
+  );
+}
+
+/* ==================================================================
+   ADMIN PANEL — password protected ("WCI"), inventory + new product
+   form with old/new (cross-out) pricing.
+
+   SECURITY NOTE: the password check runs entirely in the browser and
+   is visible in this file's source — it's a UI gate, not real
+   security. For a live store, use a real backend login instead.
+=================================================================== */
+function AdminPanel({ lang, products, setProducts, onExit }) {
+  const [authed, setAuthed] = useState(false);
+  const [pwd, setPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: "", cat: "", oldPrice: "", newPrice: "", stock: "", icon: "🪑" });
+
+  const login = () => { if (pwd === ADMIN_PASSWORD) { setAuthed(true); setError(""); } else setError("गलत पासवर्ड — फिर से कोशिश करें।"); };
+  const startEdit = (p) => { setEditingId(p.id); setEditDraft({ ...p }); };
+  const saveEdit = () => {
+    setProducts(ps => ps.map(p => p.id === editingId
+      ? { ...p, ...editDraft, oldPrice: Number(editDraft.oldPrice), newPrice: Number(editDraft.newPrice), stock: Number(editDraft.stock) }
+      : p));
+    setEditingId(null);
+  };
+  const removeProduct = (id) => setProducts(ps => ps.filter(p => p.id !== id));
+  const addProduct = () => {
+    if (!newProduct.name || !newProduct.newPrice) return;
+    const op = Number(newProduct.oldPrice) || Number(newProduct.newPrice);
+    setProducts(ps => [...ps, {
+      id: Date.now(), name: newProduct.name, nameHi: newProduct.name, cat: newProduct.cat || "General",
+      oldPrice: op, newPrice: Number(newProduct.newPrice), stock: Number(newProduct.stock) || 0,
+      icon: newProduct.icon || "🪑", finish: ["Standard"], rating: 4.5, eco: false,
+    }]);
+    setNewProduct({ name: "", cat: "", oldPrice: "", newPrice: "", stock: "", icon: "🪑" });
+    setShowAddForm(false);
+  };
+
+  if (!authed) {
+    return (
+      <div style={{ minHeight: "70vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: 26, width: "100%", maxWidth: 320 }}>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: T.paper2, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+            <Lock size={19} color={T.brass} />
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 3 }}>Admin Panel</div>
+          <div style={{ fontSize: 12, color: "#999", marginBottom: 16 }}>WCI Furniture — इन्वेंटरी मैनेजमेंट</div>
+          <label style={labelStyle}>Password</label>
+          <div style={{ position: "relative", marginBottom: 8 }}>
+            <input type={showPwd ? "text" : "password"} value={pwd} onChange={e => setPwd(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && login()} style={{ ...inputStyle, paddingRight: 36 }} placeholder="Enter admin password" />
+            <button onClick={() => setShowPwd(s => !s)} style={{ position: "absolute", right: 8, top: 8, background: "none", border: "none", cursor: "pointer" }}>
+              {showPwd ? <EyeOff size={16} color="#999" /> : <Eye size={16} color="#999" />}
+            </button>
+          </div>
+          {error && <div style={{ color: T.rust, fontSize: 12, marginBottom: 10 }}>{error}</div>}
+          <button onClick={login} style={{ ...primaryBtnSm, width: "100%", justifyContent: "center" }}>Login</button>
+          <button onClick={onExit} style={{ width: "100%", background: "none", border: "none", color: "#999", fontSize: 12, marginTop: 12, cursor: "pointer" }}>← Back to store</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ paddingBottom: 90 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 700 }}>WCI Furniture · Admin</div>
+          <div style={{ fontSize: 11, color: "#999" }}>{products.length} products in catalog</div>
+        </div>
+        <button onClick={() => { setAuthed(false); onExit(); }} style={{
+          background: T.paper2, border: "none", borderRadius: 8, color: T.ink,
+          padding: "7px 11px", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+        }}><LogOut size={13} /> Logout</button>
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+        <button onClick={() => setShowAddForm(s => !s)} style={{ ...primaryBtnSm, marginBottom: 14 }}>
+          <Plus size={15} /> {lang === "hi" ? "नया उत्पाद जोड़ें" : "Add Product"}
+        </button>
+
+        {showAddForm && (
+          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>New Product</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div><label style={labelStyle}>Name</label>
+                <input style={inputStyle} value={newProduct.name} onChange={e => setNewProduct(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Rosewood Chair" /></div>
+              <div><label style={labelStyle}>Category</label>
+                <input style={inputStyle} value={newProduct.cat} onChange={e => setNewProduct(p => ({ ...p, cat: e.target.value }))} placeholder="e.g. Chair" /></div>
+              <div><label style={labelStyle}>Old Price (MRP) ₹</label>
+                <input style={inputStyle} type="number" value={newProduct.oldPrice} onChange={e => setNewProduct(p => ({ ...p, oldPrice: e.target.value }))} placeholder="optional" /></div>
+              <div><label style={labelStyle}>New Price ₹</label>
+                <input style={inputStyle} type="number" value={newProduct.newPrice} onChange={e => setNewProduct(p => ({ ...p, newPrice: e.target.value }))} placeholder="required" /></div>
+              <div><label style={labelStyle}>Stock Qty</label>
+                <input style={inputStyle} type="number" value={newProduct.stock} onChange={e => setNewProduct(p => ({ ...p, stock: e.target.value }))} placeholder="0" /></div>
+              <div><label style={labelStyle}>फोटो अपलोड</label>
+                <input style={inputStyle} type="file" accept="image/*" onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => setNewProduct(p => ({ ...p, icon: reader.result }));
+                  reader.readAsDataURL(file);
+                }} /></div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={addProduct} style={primaryBtnSm}><Check size={14} /> Save Product</button>
+              <button onClick={() => setShowAddForm(false)} style={ghostBtn}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {products.map(p => (
+            <div key={p.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 12, padding: 12 }}>
+              {editingId === p.id ? (
+                <div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                    <input style={inputStyle} value={editDraft.name} onChange={e => setEditDraft(d => ({ ...d, name: e.target.value }))} />
+                    <input style={inputStyle} value={editDraft.cat} onChange={e => setEditDraft(d => ({ ...d, cat: e.target.value }))} />
+                    <input style={inputStyle} type="number" value={editDraft.oldPrice} onChange={e => setEditDraft(d => ({ ...d, oldPrice: e.target.value }))} placeholder="Old price" />
+                    <input style={inputStyle} type="number" value={editDraft.newPrice} onChange={e => setEditDraft(d => ({ ...d, newPrice: e.target.value }))} placeholder="New price" />
+                    <input style={inputStyle} type="number" value={editDraft.stock} onChange={e => setEditDraft(d => ({ ...d, stock: e.target.value }))} placeholder="Stock" />
+                  </div>
+                  <button onClick={saveEdit} style={primaryBtnSm}><Save size={14} /> Save</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <div style={{ fontSize: 26 }}>{p.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700 }}>{lang === "hi" ? p.nameHi : p.name}</div>
+                      <div style={{ fontSize: 11, color: "#999", marginBottom: 3 }}>{p.cat} · Stock: {p.stock}</div>
+                      <PriceTag oldPrice={p.oldPrice} newPrice={p.newPrice} size={13} />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => startEdit(p)} style={{ background: T.paper2, border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Edit3 size={13} color={T.teak} />
+                    </button>
+                    <button onClick={() => removeProduct(p.id)} style={{ background: "#FBE9E4", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Trash2 size={13} color={T.rust} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ==================================================================
+   ROOT APP
+=================================================================== */
+export default function App() {
+  const [lang, setLang] = useState("hi");
+  const [screen, setScreen] = useState("home"); // home | product | wishlist | compare | cart | admin
+  const [activeProduct, setActiveProduct] = useState(null);
+  const [products, setProducts] = useState(PRODUCTS);
+  const [wishlist, setWishlist] = useState([2, 5]);
+  const [compareList, setCompareList] = useState([]);
+  const [cart, setCart] = useState([{ product: PRODUCTS[0], finish: "Walnut", qty: 1 }]);
+  const [toast, setToast] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [points] = useState(2140);
+  const [search, setSearch] = useState("");
+  const [pushSeen, setPushSeen] = useState(false);
+
+  const s = STRINGS[lang];
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!pushSeen) {
+        setToast(lang === "hi" ? "🔔 आपका ऑर्डर पैक हो गया है — कल डिलीवरी होगी" : "🔔 Your order is packed — arriving tomorrow");
+        setPushSeen(true);
+      }
+    }, 1800);
+    return () => clearTimeout(t);
+  }, []);
+
+  const toggleWishlist = id => setWishlist(w => w.includes(id) ? w.filter(x => x !== id) : [...w, id]);
+  const toggleCompare = id => setCompareList(c => c.includes(id) ? c.filter(x => x !== id) : c.length >= 3 ? c : [...c, id]);
+  const addToCart = (p, finish) => setCart(c => {
+    const existing = c.find(i => i.product.id === p.id && i.finish === finish);
+    if (existing) return c.map(i => i === existing ? { ...i, qty: i.qty + 1 } : i);
+    return [...c, { product: p, finish, qty: 1 }];
+  });
+  const reorder = (item) => { addToCart(item.product, item.finish); setToast(lang === "hi" ? "पिछला ऑर्डर कार्ट में जोड़ा गया" : "Previous order added to cart"); };
+
+  const filtered = useMemo(() =>
+    products.filter(p => (lang === "hi" ? p.nameHi : p.name).toLowerCase().includes(search.toLowerCase()) || p.cat.toLowerCase().includes(search.toLowerCase())),
+    [search, lang, products]
+  );
+
+  const cartTotal = cart.reduce((sum, i) => sum + i.product.newPrice * i.qty, 0);
+
+  const navItems = [
+    { id: "home", label: s.home, icon: LayoutGrid },
+    { id: "wishlist", label: s.wishlist, icon: Heart, count: wishlist.length },
+    { id: "compare", label: s.compare, icon: GitCompare, count: compareList.length },
+    { id: "cart", label: s.cart, icon: ShoppingCart, count: cart.reduce((a, i) => a + i.qty, 0) },
+    { id: "admin", label: s.admin, icon: Lock },
+  ];
+
+  return (
+    <div style={{ fontFamily: "Inter, sans-serif", background: T.paper, minHeight: "100vh", maxWidth: 420, margin: "0 auto", position: "relative", color: T.ink }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        * { box-sizing: border-box; font-family: inherit; }
+        ::-webkit-scrollbar { display: none; }
+      `}</style>
+
+      {/* HEADER */}
+      <div style={{ position: "sticky", top: 0, zIndex: 50, background: T.paper, borderBottom: `1px solid ${T.line}`, padding: "14px 16px 10px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 19, fontWeight: 700 }}>{COMPANY.name}</div>
+            <div style={{ fontSize: 10.5, color: T.teak, marginBottom: 3 }}>{s.tagline}</div>
+            <div style={{ fontSize: 10, color: "#999", display: "flex", alignItems: "center", gap: 4 }}>
+              <MapPin size={10} /> {COMPANY.address.split(",")[0]}, {COMPANY.pincode}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={() => setLang(lang === "hi" ? "en" : "hi")} style={{ ...navBtn, width: "auto", padding: "0 10px", display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700 }}>
+              <Globe size={13} /> {lang === "hi" ? "EN" : "हिं"}
+            </button>
+            <div style={{ ...navBtn, width: "auto", padding: "0 10px", display: "flex", alignItems: "center", gap: 5, background: T.paper2, borderColor: T.brass }}>
+              <Award size={13} color={T.brass} /><span style={{ fontSize: 11.5, fontWeight: 700 }}>{points}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 12, padding: "9px 12px" }}>
+          <Search size={15} color="#999" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={s.searchPh}
+            style={{ border: "none", outline: "none", flex: 1, fontSize: 13, background: "transparent" }} />
+        </div>
+      </div>
+
+      {/* SCREENS */}
+      {screen === "home" && (
+        <div style={{ padding: 16 }}>
+          <div style={{ background: `linear-gradient(120deg, ${T.ink}, #3A2A1C)`, borderRadius: 16, padding: 16, color: "#fff", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ maxWidth: "65%" }}>
+              <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 4 }}>{lang === "hi" ? "अपना कमरा 3D में प्लान करें" : "Plan your room in 3D"}</div>
+              <div style={{ fontSize: 11, color: "#D8CBB4" }}>{lang === "hi" ? "खरीदने से पहले AR में देखें" : "Preview in AR before you buy"}</div>
+            </div>
+            <LayoutGrid size={34} color={T.brass} />
+          </div>
+
+          {cart.length > 0 && (
+            <div style={{ marginBottom: 10, fontSize: 12, color: T.teak, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <RotateCcw size={13} /> {s.reorder}:
+              <button onClick={() => reorder(cart[0])} style={{ ...chip, padding: "4px 10px" }}>
+                {lang === "hi" ? cart[0].product.nameHi : cart[0].product.name} +1
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {filtered.map(p => (
+              <ProductCard key={p.id} p={p} lang={lang} wishlist={wishlist} toggleWishlist={toggleWishlist}
+                compareList={compareList} toggleCompare={toggleCompare}
+                openProduct={(prod) => { setActiveProduct(prod); setScreen("product"); }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {screen === "product" && activeProduct && (
+        <ProductDetail p={activeProduct} lang={lang} addToCart={addToCart} showToast={setToast} back={() => setScreen("home")} />
+      )}
+
+      {screen === "wishlist" && (
+        <div style={{ padding: 16 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{s.wishlist}</div>
+          {wishlist.length === 0 ? (
+            <div style={{ fontSize: 13, color: "#999" }}>{lang === "hi" ? "खाली है" : "Nothing here yet"}</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {products.filter(p => wishlist.includes(p.id)).map(p => (
+                <ProductCard key={p.id} p={p} lang={lang} wishlist={wishlist} toggleWishlist={toggleWishlist}
+                  compareList={compareList} toggleCompare={toggleCompare}
+                  openProduct={(prod) => { setActiveProduct(prod); setScreen("product"); }} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {screen === "compare" && (
+        <div style={{ padding: 16 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{s.compare}</div>
+          {compareList.length === 0 ? (
+            <div style={{ fontSize: 13, color: "#999" }}>{lang === "hi" ? "तुलना के लिए 2-3 प्रोडक्ट चुनें" : "Select 2–3 products to compare"}</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {["newPrice", "rating", "cat"].map(field => (
+                <div key={field} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 12, padding: 12 }}>
+                  <div style={{ fontSize: 10.5, color: "#999", textTransform: "uppercase", marginBottom: 8 }}>{field === "newPrice" ? "price" : field}</div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {products.filter(p => compareList.includes(p.id)).map(p => (
+                      <div key={p.id} style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>
+                        {field === "newPrice" ? `₹${p.newPrice.toLocaleString("en-IN")}` : p[field]}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {screen === "cart" && (
+        <div style={{ padding: 16, paddingBottom: 100 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{s.cart}</div>
+          {cart.map((item, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ fontSize: 28 }}>{item.product.icon}</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{lang === "hi" ? item.product.nameHi : item.product.name}</div>
+                  <div style={{ fontSize: 11, color: "#999" }}>{item.finish} · x{item.qty}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>₹{(item.product.newPrice * item.qty).toLocaleString("en-IN")}</div>
+            </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 4px", borderTop: `1px dashed ${T.line}`, marginTop: 8, fontSize: 15, fontWeight: 700 }}>
+            <span>{lang === "hi" ? "कुल" : "Total"}</span><span>₹{cartTotal.toLocaleString("en-IN")}</span>
+          </div>
+          <div style={{ fontSize: 11.5, color: T.teak, marginBottom: 12 }}>+{Math.round(cartTotal / 100)} {s.points} {s.redeemable}</div>
+          <button style={{ ...primaryBtnSm, width: "100%", justifyContent: "center", padding: 13 }}
+            onClick={() => setToast(lang === "hi" ? "ऑर्डर हो गया — ट्रैकिंग शुरू" : "Order placed — tracking started")}>
+            {s.buyNow}
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: T.teak, marginTop: 10 }}>
+            <MapPin size={13} /> {s.trackOrder}
+          </div>
+        </div>
+      )}
+
+      {screen === "admin" && (
+        <AdminPanel lang={lang} products={products} setProducts={setProducts} onExit={() => setScreen("home")} />
+      )}
+
+      {/* BOTTOM NAV */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 420, margin: "0 auto", background: "#fff", borderTop: `1px solid ${T.line}`, display: "flex", justifyContent: "space-around", padding: "8px 4px", zIndex: 100 }}>
+        {navItems.map(n => (
+          <button key={n.id} onClick={() => setScreen(n.id)} style={{
+            background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 2, position: "relative", color: screen === n.id ? T.ink : "#B3A78E", padding: "4px 6px",
+          }}>
+            <n.icon size={19} fill={screen === n.id && n.id === "wishlist" ? T.ink : "none"} />
+            <span style={{ fontSize: 9.5, fontWeight: screen === n.id ? 700 : 500 }}>{n.label}</span>
+            {n.count > 0 && (
+              <span style={{ position: "absolute", top: -2, right: -2, background: T.rust, color: "#fff", fontSize: 8.5, borderRadius: 10, minWidth: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{n.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ALEXA FAB */}
+      {!chatOpen && (
+        <button onClick={() => setChatOpen(true)} style={{
+          position: "fixed", bottom: 70, right: "max(16px, calc(50% - 194px))", zIndex: 90,
+          background: T.brass, border: "none", borderRadius: "50%", width: 50, height: 50,
+          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+          boxShadow: "0 8px 20px rgba(184,134,59,.4)",
+        }}><MessageCircle size={22} color="#fff" /></button>
+      )}
+      {chatOpen && <AlexaChatbot lang={lang} onClose={() => setChatOpen(false)} />}
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+    </div>
+  );
+}
